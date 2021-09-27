@@ -20,10 +20,10 @@ If `override` is true, the `customText` value will be used instead of the defaul
 Otherwise, `customText` will be injected into the default speech, in the following manner:
 
 ```
-[...]
-[funFact]
--> [customText]
-[...]
+Happy ${day}!
+Before we start let me share that ${funFact}. I hope this highlights your day. But let's get serious.
+${customText}
+${openAiGeneratedStarterMessage}
 ```
 
 ## Example use cases:
@@ -36,14 +36,54 @@ Otherwise, `customText` will be injected into the default speech, in the followi
 
 [Pipedream](https://pipedream.com/) is a low code integration platform for developers that allows you to connect APIs remarkably fast.
 
+We provided a premade Pipedream workflow for each of the above use cases, and also the steps to recreate them.
+
+### Day of the year
+
+[Premade Pipedream workflow](https://pipedream.com/@apexedit/custom-webhook-day-of-the-year-override-false-p_BjCAleD)
+
+Steps to recreate:
+
+1. Select HTTP API as trigger.
+2. With the plus button add a new step.
+3. Select `Run Node.js code` from the right panel.
+4. Copy the following code and paste it into the `code` input:
+
+```js
+async (event, steps) => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff =
+    now -
+    start +
+    (start.getTimezoneOffset() - now.getTimezoneOffset()) * 60 * 1000;
+  const oneDay = 1000 * 60 * 60 * 24;
+  const numberOfDay = Math.floor(diff / oneDay);
+
+  const body = {
+    override: true,
+    customText: `This is the ${numberOfDay}th day of the year.`,
+  };
+
+  $respond({
+    status: 200,
+    body,
+  });
+};
+```
+
 ### Number of open PRs - GitHub
+
+[Premade Pipedream workflow](https://pipedream.com/@apexedit/custom-webhook-github-integration-example-p_aNCqAVb)
+
+Steps to recreate:
 
 1. Select HTTP API as trigger.
 2. With the plus button add a new step.
 3. Select `GitHub` from the integrations.
 4. Select the `Search Issues Or Pull Requests` action.
 5. Connect your Github account, or select and already connected one.
-6. For the query input the following `repo:[repo] is:pr is:open draft:false` where [repo] should be replaced by the name of your repository.
+6. For the `query` input add the following `repo:[repo] is:pr is:open draft:false` where [repo] should be replaced by the name of your repository.
 7. Add a new step.
 8. Select `Run Node.js code` from the right panel.
 9. Copy the following code and paste it into the `code` input:
@@ -71,22 +111,82 @@ async (event, steps) => {
 
 ### Remaining days in current sprint - Jira
 
-### Day of the year
+[Premade Pipedream workflow](https://pipedream.com/@apexedit/custom-webhook-jira-integration-example-p_xMCxeep)
+
+Steps to recreate:
+
+1. Select HTTP API as trigger.
+2. With the plus button add a new step.
+3. Select `Jira` from the integrations.
+4. Select the `Get Projects Paginated` action.
+5. Connect your Jira account, or select and already connected one.
+6. Copy the following code and paste it into the `code` input, providing your project id for the JIRA_PROJECT_ID variable:
 
 ```js
 async (event, steps) => {
+  // Change this to the relevant JIRA project
+  const JIRA_PROJECT_ID = "";
+
+  // First we must make a request to get our the cloud instance ID tied
+  // to our connected account, which allows us to construct the correct REST API URL.
+  const resp = await require("@pipedreamhq/platform").axios(this, {
+    url: `https://api.atlassian.com/oauth/token/accessible-resources`,
+    headers: {
+      Authorization: `Bearer ${auths.jira.oauth_access_token}`,
+    },
+  });
+
+  // Assumes the access token has access to be a single instance
+  const cloudId = resp[0].id;
+
+  // Construct querry with JQL syntax then encode it and us it as querry param
+  const jql = encodeURIComponent(`project = ${JIRA_PROJECT_ID}`);
+
+  // This will return issues related to the JIRA project
+  return await require("@pipedreamhq/platform").axios(this, {
+    url: `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search?jql=${jql}`,
+    headers: {
+      Authorization: `Bearer ${auths.jira.oauth_access_token}`,
+      Accept: "application/json",
+    },
+  });
+};
+```
+
+7. Add a new step.
+8. Select `Run Node.js code` from the right panel.
+9. Copy the following code and paste it into the `code` input, providing FIELD_ID.
+
+```js
+async (event, steps) => {
+  // Add custom field id here
+  // this will be extracted from previous step's result
+  const FIELD_ID = "";
+
+  const sprints = steps.jira_get_projects_paginated.$return_value.issues
+    .map(({ fields }) => fields[FIELD_ID])
+    .filter((sprint) => !!sprint);
+  const activeSprint = sprints.find((sprintArray) => {
+    if (sprintArray) {
+      return sprintArray[0]?.state === "active";
+    } else {
+      return false;
+    }
+  })[0];
+
+  // FYI: Sprint example:
+  // {"id":44,"name":"StandupPlus Sprint 4","state":"active","boardId":10,"goal":"","startDate":"2021-08-24T06:48:38.454Z","endDate":"2021-09-08T06:48:00.000Z"}
+
   const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff =
-    now -
-    start +
-    (start.getTimezoneOffset() - now.getTimezoneOffset()) * 60 * 1000;
-  const oneDay = 1000 * 60 * 60 * 24;
-  const numberOfDay = Math.floor(diff / oneDay);
+  const sprintEndDate = new Date(activeSprint.endDate);
+  const diffTime = Math.abs(sprintEndDate - now);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const dayOrDays = diffDays === 1 ? "day" : "days";
 
   const body = {
-    override: true,
-    customText: `This is the ${numberOfDay}th day of the year.`,
+    override: false,
+    customText: `We have ${diffDays} ${dayOrDays} left in this sprint.`,
   };
 
   $respond({
