@@ -159,6 +159,8 @@ async (event, steps) => {
 
 ```js
 async (event, steps) => {
+  const differenceInBusinessDays = require('date-fns/differenceInBusinessDays')
+
   // Add custom field id here
   // this will be extracted from previous step's result
   const FIELD_ID = "";
@@ -177,17 +179,12 @@ async (event, steps) => {
   // FYI: Sprint example:
   // {"id":44,"name":"StandupPlus Sprint 4","state":"active","boardId":10,"goal":"","startDate":"2021-08-24T06:48:38.454Z","endDate":"2021-09-08T06:48:00.000Z"}
 
-  const now = new Date();
-  const sprintEndDate = new Date(activeSprint.endDate);
-  const diffTime = Math.abs(sprintEndDate - now);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  const dayOrDays = diffDays === 1 ? "day" : "days";
+  const diffDays = differenceInBusinessDays(new Date(activeSprint.endDate), new Date())
 
   const body = {
     override: false,
-    customText: `We have ${diffDays} ${dayOrDays} left in this sprint.`,
-  };
+    customText: `We have ${diffDays} ${diffDays === 1 ? 'day' : 'days'} left in this sprint.`
+  }
 
   $respond({
     status: 200,
