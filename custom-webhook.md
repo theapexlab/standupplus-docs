@@ -29,8 +29,8 @@ ${openAiGeneratedStarterMessage}
 ## Example use cases:
 
 - [Day of the year](#day-of-the-year)
-- [Number of open PRs - Github](#number-of-open-prs-github)
-- [Remaining days in current sprint - Jira](#remaining-days-in-current-sprint-jira)
+- [Number of open PRs - Github](#number-of-open-prs---github)
+- [Remaining days in current sprint - Jira](#remaining-days-in-current-sprint---jira)
 
 ## Pipedream
 
