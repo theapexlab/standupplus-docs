@@ -163,23 +163,15 @@ async (event, steps) => {
 
   // Add custom field id here
   // this will be extracted from previous step's result
-  const FIELD_ID = "";
+  // Sprint custrom field id:  customfield_10020
+  const FIELD_ID = "customfield_10020"
 
-  const sprints = steps.jira_get_projects_paginated.$return_value.issues
-    .map(({ fields }) => fields[FIELD_ID])
-    .filter((sprint) => !!sprint);
-  const activeSprint = sprints.find((sprintArray) => {
-    if (sprintArray) {
-      return sprintArray[0]?.state === "active";
-    } else {
-      return false;
-    }
-  })[0];
+  const now = new Date()
 
-  // FYI: Sprint example:
-  // {"id":44,"name":"StandupPlus Sprint 4","state":"active","boardId":10,"goal":"","startDate":"2021-08-24T06:48:38.454Z","endDate":"2021-09-08T06:48:00.000Z"}
+  const sprints = steps.jira.$return_value.issues.map(({ fields }) => fields[FIELD_ID]).filter(sprint => !!sprint).flat()
+  const activeSprint = sprints.find(sprint => sprint && sprint.state === 'active' && new Date(sprint.endDate) > now)
 
-  const diffDays = differenceInBusinessDays(new Date(activeSprint.endDate), new Date())
+  const diffDays = differenceInBusinessDays(new Date(activeSprint.endDate), now)
 
   const body = {
     override: false,
@@ -188,7 +180,7 @@ async (event, steps) => {
 
   $respond({
     status: 200,
-    body,
-  });
+    body
+  })
 };
 ```
